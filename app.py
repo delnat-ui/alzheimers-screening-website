@@ -43,12 +43,48 @@ binary_fields = {
     "DifficultyCompletingTasks", "Forgetfulness"
 }
 labels = {
+    "Age": "Age (years)",
+    "EducationLevel": "Education level",
+    "AlcoholConsumption": "Alcohol consumption (dataset scale: 0–20)",
+    "PhysicalActivity": "Physical activity (dataset scale: 0–10)",
+    "DietQuality": "Diet quality (dataset scale: 0–10)",
+    "SleepQuality": "Sleep quality (dataset scale: 4–10)",
     "FamilyHistoryAlzheimers": "Family history of Alzheimer's",
     "CardiovascularDisease": "Cardiovascular disease",
     "MemoryComplaints": "Memory complaints",
     "BehavioralProblems": "Behavioral problems",
     "DifficultyCompletingTasks": "Difficulty completing tasks",
+    "SystolicBP": "Systolic blood pressure (mmHg)",
+    "DiastolicBP": "Diastolic blood pressure (mmHg)",
+    "CholesterolTotal": "Total cholesterol",
+    "CholesterolLDL": "LDL cholesterol",
+    "CholesterolHDL": "HDL cholesterol",
+    "CholesterolTriglycerides": "Triglycerides",
+    "MMSE": "MMSE score (0–30)",
+    "FunctionalAssessment": "Functional assessment score (0–10)",
+    "ADL": "Activities of Daily Living (ADL) score (0–10)",
 }
+
+# Human-readable numeric entry ranges based on the ranges present in the training dataset.
+# The fitted pipeline remains responsible for applying any model preprocessing.
+numeric_specs = {
+    "Age": (60, 90, 75, 1, "Years; dataset range 60–90."),
+    "BMI": (15.0, 40.0, 27.7, 0.1, "BMI; dataset range approximately 15–40."),
+    "AlcoholConsumption": (0.0, 20.0, 10.0, 0.1, "Dataset scale 0–20; use the same scale as the training data."),
+    "PhysicalActivity": (0.0, 10.0, 4.9, 0.1, "Dataset scale 0–10; this is not labelled in hours or minutes."),
+    "DietQuality": (0.0, 10.0, 5.0, 0.1, "Dataset scale 0–10."),
+    "SleepQuality": (4.0, 10.0, 7.1, 0.1, "Dataset scale approximately 4–10."),
+    "SystolicBP": (90, 179, 134, 1, "Systolic blood pressure in mmHg; dataset range 90–179."),
+    "DiastolicBP": (60, 119, 90, 1, "Diastolic blood pressure in mmHg; dataset range 60–119."),
+    "CholesterolTotal": (150.0, 300.0, 225.2, 0.1, "Dataset range approximately 150–300."),
+    "CholesterolLDL": (50.0, 200.0, 124.3, 0.1, "Dataset range approximately 50–200."),
+    "CholesterolHDL": (20.0, 100.0, 59.5, 0.1, "Dataset range approximately 20–100."),
+    "CholesterolTriglycerides": (50.0, 400.0, 228.3, 0.1, "Dataset range approximately 50–400."),
+    "MMSE": (0.0, 30.0, 14.8, 0.1, "Dataset score range 0–30."),
+    "FunctionalAssessment": (0.0, 10.0, 5.1, 0.1, "Dataset score range 0–10."),
+    "ADL": (0.0, 10.0, 5.0, 0.1, "Dataset score range 0–10."),
+}
+
 groups = {
     "Demographic information": ["Age", "Gender", "Ethnicity", "EducationLevel"],
     "Lifestyle information": ["BMI", "Smoking", "AlcoholConsumption", "PhysicalActivity", "DietQuality", "SleepQuality"],
@@ -63,7 +99,7 @@ if assigned != known:
     groups["Other model inputs"] = [f for f in feature_columns if f not in assigned]
 
 st.subheader("Demonstration input form")
-st.caption("All fields are required. Measurements remain numeric; categorical fields use dropdowns or Yes/No selections.")
+st.caption("Enter measurements in normal readable values. Choose dropdown options or Yes/No for categorical fields. Numeric ranges follow the synthetic training dataset.")
 with st.form("screening_input_form"):
     values = {}
     for group_title, names in groups.items():
@@ -82,8 +118,19 @@ with st.form("screening_input_form"):
                     selected = st.selectbox(label, ["No", "Yes"], key=f"field_{feature}")
                     values[feature] = 0 if selected == "No" else 1
                 else:
-                    help_text = "Enter the numeric measurement/score using the dataset's units."
-                    values[feature] = st.number_input(label, value=0.0, format="%.4f", help=help_text, key=f"field_{feature}")
+                    minimum, maximum, default, step, help_text = numeric_specs.get(
+                        feature, (0.0, 100.0, 0.0, 0.1, "Enter the numeric value using the dataset's scale.")
+                    )
+                    is_integer = step == 1
+                    values[feature] = st.number_input(
+                        label,
+                        min_value=int(minimum) if is_integer else float(minimum),
+                        max_value=int(maximum) if is_integer else float(maximum),
+                        value=int(default) if is_integer else float(default),
+                        step=int(step) if is_integer else float(step),
+                        help=help_text,
+                        key=f"field_{feature}",
+                    )
         st.divider()
     submitted = st.form_submit_button("Run preliminary model estimate", type="primary")
 
